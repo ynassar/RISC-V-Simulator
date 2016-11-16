@@ -50,8 +50,10 @@ var instructionType = {
 }
 var LabelAddress = {};
 var programInstructions = [];
+var lastMemoryAddress = 4*1024;
 function selectTextareaLine(tarea,lineNum) {
     var liness = tarea.value.split("\n");
+
     // calculate start/end
     var startPos = 0, endPos = tarea.value.length;
     for(var x = 0; x < liness.length; x++) {
@@ -59,16 +61,21 @@ function selectTextareaLine(tarea,lineNum) {
             break;
         }
         startPos += (liness[x].length+1);
+
     }
+
     var endPos = liness[lineNum].length+startPos;
+
     // do selection
     // Chrome / Firefox
+
     if(typeof(tarea.selectionStart) != "undefined") {
         tarea.focus();
         tarea.selectionStart = startPos;
         tarea.selectionEnd = endPos;
         return true;
     }
+
     // IE
     if (document.selection && document.selection.createRange) {
         tarea.focus();
@@ -80,6 +87,7 @@ function selectTextareaLine(tarea,lineNum) {
         range.select();
         return true;
     }
+
     return false;
 }
 function Step(){
@@ -223,26 +231,37 @@ function RunInstruction(inst){
 			regs[rd] += imm << 12;
 		break;
 		case "AUIPC" :
+			regs[rd] = PC + ( imm << 12 );
 		break;
 		case "XOR" :
+			regs[rd] = regs[rs1] ^ regs[rs2];
 		break;
 		case "XORI" :
+			regs[rd] = regs[rs1] ^ imm;
 		break;
 		case "OR" :
+			regs[rd] = regs[rs1] | regs[rs2];
 		break;
 		case "ORI" :
+			regs[rd] = regs[rs1] | imm;
 		break;
 		case "AND" :
+			regs[rd] = regs[rs1] & regs[rs2];
 		break;
 		case "ANDI" :
+			regs[rd] = regs[rs1] & imm;
 		break;
 		case "SLT" :
+			regs[rd] = ( regs[rs1] < regs[rs2] );
 		break;
 		case "SLTI" :
+			regs[rd] = ( regs[rs1] < imm );
 		break;
 		case "SLTU" :
+			regs[rd] = ( regs[rs1] >>> 0 < regs[rs2] >>> 0 );
 		break;
 		case "SLTIU" :
+			regs[rd] = ( regs[rs1] >>> 0 < sext(imm) >>> 0 );
 		break;
 		case "BEQ" :
 			if(!(label in LabelAddress)){
@@ -278,6 +297,7 @@ function RunInstruction(inst){
 				return false;
 			}
 			PC = (regs[rs1] >>> 0 < regs[rs2] >>> 0) ? LabelAddress[label] - 4 : PC;
+
 		break;
 		case "BGEU" :
 			if(!(label in LabelAddress)){
@@ -291,7 +311,6 @@ function RunInstruction(inst){
 				document.getElementById("errors").innerHTML += "\nInvalid Label\n";
 				return false;
 			}
-			console.log("JAL TO " + label + " PC = " + LabelAddress[label]);
 			regs[rd] = PC + 4;
 			PC = LabelAddress[label] - 4;
 		break;
@@ -305,7 +324,7 @@ function RunInstruction(inst){
 				break;
 				case 4:
 					var idx = regs[10];
-					while(idx < memory.length && memory[idx] != 0){
+					while(idx < memory.length && memory[idx] != '\0'){
 						document.getElementById("output").innerHTML += memory[idx];
 						idx++;
 					}
@@ -335,6 +354,8 @@ function RunInstruction(inst){
 function InitializeMemory(){
 	parsingMode = "text";
 	PC = 0;
+	LabelAddress = {};
+	lastMemoryAddress = 4*1024;
 	regs = [];
 	memory = [];
 	for(var i = 0; i < 32; i ++){
@@ -351,7 +372,6 @@ function ReadInput(){
 	for (var i = 0; i < lines.length; i ++){
 		var InstructionData = ParseInstruction(lines[i]);
 		var validity = InstructionData.validity;
-		console.log(InstructionData);
 		if(validity == "emptyline" || validity == "label"){
 			continue;
 		}
@@ -402,10 +422,8 @@ function getParsedData(string, remainingString){
 	 }
 	 return parsedData;
 }
-var lastMemoryAddress = 4*1024;
 function ParseInstruction(line){
 	if(parsingMode == "text"){
-		console.log(line);
 		var LabelPattern = /^[a-zA-Z][\w]*:$/;
 		var DataPattern = /^\.data$/;
 		var AllTextPattern = /^[\d]*\.text[\d]*$/;
@@ -570,11 +588,10 @@ function ParseAsciiData(dataString){
 	else{
 		var execResult = pattern.exec(dataString);
 		for(var i =0; i < execResult[1].length; i ++){
-			console.log(execResult[1][i]);
 			memory[lastMemoryAddress] = execResult[1][i];
 			lastMemoryAddress++;
 		}
-		memory[lastMemoryAddress] = 0;
+		memory[lastMemoryAddress] = '\0';
 		lastMemoryAddress ++;
 		return true;
 	}
